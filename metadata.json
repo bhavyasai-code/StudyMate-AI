@@ -1,0 +1,8 @@
+{
+  "name": "StudyMate AI",
+  "description": "An interactive, premium, AI-powered study companion with dynamic tools for students, including AI card-flippers, planners, customizable notes summarizers, quiz builders, and doubt bots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
