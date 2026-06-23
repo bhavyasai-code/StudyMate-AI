@@ -18,10 +18,13 @@ import {
   Layers, 
   Calendar, 
   MessageSquare, 
-  Award 
+  Award,
+  LogOut,
+  User
 } from "lucide-react";
 
 // Import Custom Modular Components
+import LoginPage from "./components/LoginPage";
 import HeroSection from "./components/HeroSection";
 import AboutSection from "./components/AboutSection";
 import NotesSummarizer from "./components/NotesSummarizer";
@@ -40,6 +43,27 @@ export default function App() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+
+  // Auth local storage state
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem("studyMateUser");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLoginSuccess = (nameStr: string, emailStr: string) => {
+    const userObj = { name: nameStr, email: emailStr };
+    localStorage.setItem("studyMateUser", JSON.stringify(userObj));
+    setCurrentUser(userObj);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("studyMateUser");
+    setCurrentUser(null);
+  };
 
   // Handle loading screen on initial mount
   useEffect(() => {
@@ -132,17 +156,24 @@ export default function App() {
       </AnimatePresence>
 
       {/* 2. Top Scroll Progress Indicator */}
-      <div 
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 z-50 transition-all duration-100"
-        style={{ width: `${scrollProgress}%` }}
-      />
+      {currentUser && (
+        <div 
+          className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 z-50 transition-all duration-100"
+          style={{ width: `${scrollProgress}%` }}
+        />
+      )}
 
-      {/* 3. Sticky Navbar */}
-      <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 border-b backdrop-blur-md ${
-        isDarkMode 
-          ? "bg-[#0F172A]/85 border-slate-800/80" 
-          : "bg-white/85 border-slate-200"
-      }`}>
+      {/* Conditionally render login page or main dashboard flow */}
+      {!currentUser ? (
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      ) : (
+        <>
+          {/* 3. Sticky Navbar */}
+          <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 border-b backdrop-blur-md ${
+            isDarkMode 
+              ? "bg-[#0F172A]/85 border-slate-800/80" 
+              : "bg-white/85 border-slate-200"
+          }`}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Logo / Title */}
@@ -177,7 +208,29 @@ export default function App() {
           </nav>
 
           {/* Action Tools: theme toggle & contact btn & hamburger */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Student Profile chip */}
+            {currentUser && (
+              <div 
+                className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                  isDarkMode 
+                    ? "bg-slate-950 border-slate-800 text-cyan-300" 
+                    : "bg-slate-100 border-slate-200 text-indigo-700"
+                }`}
+                title={`Logged in as ${currentUser.name} (${currentUser.email})`}
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="max-w-[120px] truncate">{currentUser.name}</span>
+                <button
+                  onClick={handleLogout}
+                  className="ml-1 p-0.5 text-slate-400 hover:text-rose-500 rounded-md transition-colors"
+                  title="Sign out from system node"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -242,9 +295,32 @@ export default function App() {
                   </button>
                 ))}
                 
+                {currentUser && (
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 ${
+                    isDarkMode ? "bg-slate-950 border-slate-900" : "bg-slate-100 border-slate-200"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+                      <div className="text-left text-xs leading-tight">
+                        <span className={`font-black block ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                          {currentUser.name}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium font-mono">{currentUser.email}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full py-2.5 rounded-lg border border-rose-500/10 hover:border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 text-xs font-bold transition-all text-center cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Get Sign-Out Clearances
+                    </button>
+                  </div>
+                )}
+
                 <button
                   onClick={() => scrollToSection("contact")}
-                  className="w-full py-3.5 mt-2 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white shadow-md text-center cursor-pointer block"
+                  className="w-full py-3.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white shadow-md text-center cursor-pointer block"
                 >
                   Contact Support / Panel
                 </button>
@@ -393,6 +469,8 @@ export default function App() {
           </motion.button>
         )}
       </AnimatePresence>
+        </>
+      )}
 
     </div>
   );

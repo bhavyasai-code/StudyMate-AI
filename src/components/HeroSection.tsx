@@ -17,6 +17,21 @@ export default function HeroSection({ onGetStarted, onExploreFeatures }: HeroSec
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [studentName, setStudentName] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("studyMateUser");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.name) {
+          setStudentName(parsed.name);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -60,10 +75,10 @@ export default function HeroSection({ onGetStarted, onExploreFeatures }: HeroSec
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-semibold tracking-wider uppercase self-center lg:self-start w-fit shadow-xs shadow-indigo-500/10 backdrop-blur-md"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-bold tracking-wider uppercase self-center lg:self-start w-fit shadow-xs shadow-indigo-500/10 backdrop-blur-md"
             >
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-              Empowering Students with Web AI
+              {studentName ? `Welcome back, ${studentName}!` : "Empowering Students with Web AI"}
             </motion.div>
 
             <motion.h1
