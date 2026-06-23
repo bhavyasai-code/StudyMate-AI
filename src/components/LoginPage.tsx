@@ -3,53 +3,160 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import { GraduationCap, Sparkles, LogIn, Lock, Mail, ArrowRight, UserCheck, ShieldAlert } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  GraduationCap, 
+  Sparkles, 
+  LogIn, 
+  UserPlus, 
+  Lock, 
+  Mail, 
+  UserCheck, 
+  ShieldAlert, 
+  CheckCircle2, 
+  User 
+} from "lucide-react";
 
 interface LoginPageProps {
   onLoginSuccess: (studentName: string, studentEmail: string) => void;
 }
 
+interface Account {
+  name: string;
+  email: string;
+  password: string;
+}
+
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [fullname, setFullname] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Suggested preset emails for examiners to click instantly
+  // Seed default databases in localStorage
+  useEffect(() => {
+    try {
+      const existing = localStorage.getItem("studyMateAccounts");
+      if (!existing) {
+        const defaultAccounts: Account[] = [
+          { name: "Guest Student", email: "guest@studymate.ai", password: "password123" },
+          { name: "SaaS Evaluator", email: "reviewer@university.edu", password: "password123" }
+        ];
+        localStorage.setItem("studyMateAccounts", JSON.stringify(defaultAccounts));
+      }
+    } catch (e) {
+      console.warn("Storage access failed: Cannot seed logins database", e);
+    }
+  }, []);
+
+  const getAccounts = (): Account[] => {
+    try {
+      const saved = localStorage.getItem("studyMateAccounts");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveAccounts = (accounts: Account[]) => {
+    try {
+      localStorage.setItem("studyMateAccounts", JSON.stringify(accounts));
+    } catch (e) {
+      console.error("Failed to write to accounts database", e);
+    }
+  };
+
   const presetStudents = [
     { name: "Guest Student", email: "guest@studymate.ai" },
     { name: "SaaS Evaluator", email: "reviewer@university.edu" }
   ];
 
   const handlePresetClick = (name: string, emailStr: string) => {
+    setErrorMsg("");
+    setSuccessMsg("");
     setFullname(name);
     setEmail(emailStr);
     setPassword("password123");
-    setErrorMsg("");
+    setMode("signin");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setSuccessMsg("");
 
-    // Minimal client-side validation
-    if (!email.trim() || !password.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const finalPassword = password.trim();
+    const finalName = fullname.trim();
+
+    if (!normalizedEmail || !finalPassword) {
       setErrorMsg("Please provide both email address and password.");
+      return;
+    }
+
+    if (mode === "signup" && !finalName) {
+      setErrorMsg("Please enter your full name to register.");
       return;
     }
 
     setIsSubmitting(true);
 
-    // Simulate authentication telemetry checks
     setTimeout(() => {
       setIsSubmitting(false);
-      // Fallback name if none supplied
-      const finalName = fullname.trim() || email.split("@")[0] || "Academic Scholar";
-      onLoginSuccess(finalName, email);
+      const accounts = getAccounts();
+
+      if (mode === "signup") {
+        // Sign Up Flow
+        const existingUser = accounts.find((a) => a.email.toLowerCase() === normalizedEmail);
+        if (existingUser) {
+          setErrorMsg("An account with this email already exists. Please Sign In.");
+          return;
+        }
+
+        const newAccount: Account = {
+          name: finalName,
+          email: normalizedEmail,
+          password: finalPassword,
+        };
+
+        const updated = [...accounts, newAccount];
+        saveAccounts(updated);
+
+        setSuccessMsg(`Welcome, ${finalName}! Your account has been registered successfully.`);
+        
+        // Auto sign them in after a brief pause
+        setTimeout(() => {
+          onLoginSuccess(finalName, normalizedEmail);
+        }, 1500);
+
+      } else {
+        // Sign In Flow
+        const matched = accounts.find((a) => a.email.toLowerCase() === normalizedEmail);
+        if (!matched) {
+          setErrorMsg("Account does not exist. Please sign up above first!");
+          return;
+        }
+
+        if (matched.password !== finalPassword) {
+          setErrorMsg("Password mismatch! Please check your credentials and try again.");
+          return;
+        }
+
+        // Success
+        onLoginSuccess(matched.name, matched.email);
+      }
     }, 1200);
+  };
+
+  const handleModeSwitch = (newMode: "signin" | "signup") => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    // Keep email or fields if convenient, clear error contexts
+    setMode(newMode);
   };
 
   return (
@@ -98,7 +205,33 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </motion.p>
         </div>
 
-        {/* Login Card */}
+        {/* Dynamic Mode Switch Tabs */}
+        <div className="flex items-center p-1 rounded-2xl bg-slate-950/80 border border-slate-800/80 mb-4 max-w-full relative">
+          <button
+            onClick={() => handleModeSwitch("signin")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 relative flex items-center justify-center gap-1.5 cursor-pointer ${
+              mode === "signin" 
+                ? "bg-slate-900 border border-slate-800 text-white shadow-lg" 
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Sign In Account
+          </button>
+          <button
+            onClick={() => handleModeSwitch("signup")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 relative flex items-center justify-center gap-1.5 cursor-pointer ${
+              mode === "signup" 
+                ? "bg-slate-900 border border-slate-800 text-white shadow-lg" 
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Register / Sign Up
+          </button>
+        </div>
+
+        {/* Login/Signup Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -107,34 +240,53 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         >
           <div className="flex items-center justify-between border-b border-slate-800/60 pb-4 mb-6">
             <div className="text-left">
-              <h2 className="text-lg font-bold text-white tracking-tight">Active Scholar Login</h2>
-              <p className="text-[11px] text-slate-400">Input any credentials to access dynamic tools instantly.</p>
+              <h2 className="text-lg font-bold text-white tracking-tight">
+                {mode === "signin" ? "Academic Sign In" : "Register Credentials"}
+              </h2>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                {mode === "signin" 
+                  ? "Enter your email and passcode to verify credentials." 
+                  : "Sign up to register a persistent mock session account."
+                }
+              </p>
             </div>
-            <span className="text-[10px] text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-sm border border-cyan-500/20 font-bold font-mono tracking-wider">
-              FREE ACCESS
+            <span className="text-[10px] text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded-sm border border-cyan-500/20 font-bold font-mono tracking-wider shrink-0 self-start">
+              {mode === "signin" ? "SIGN IN" : "SIGN UP"}
             </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
-            {/* Optional Full Name */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                Full Name <span className="text-slate-500 text-[10px] font-mono font-medium">(Optional)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={fullname}
-                  onChange={(e) => setFullname(e.target.value)}
-                  placeholder="e.g. Professor Reviewer"
-                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-xs sm:text-sm font-medium p-3.5 pl-4 rounded-xl outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-slate-500 text-slate-100"
-                />
-              </div>
-            </div>
+            
+            {/* Show Full Name field in Sign Up Mode */}
+            <AnimatePresence initial={false}>
+              {mode === "signup" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: "1rem" }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-1.5 overflow-hidden"
+                >
+                  <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-cyan-400 animate-pulse" /> Full Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required={mode === "signup"}
+                      value={fullname}
+                      onChange={(e) => setFullname(e.target.value)}
+                      placeholder="e.g. Professor Reviewer"
+                      className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 text-xs sm:text-sm font-medium p-3.5 pl-4 rounded-xl outline-hidden focus:ring-1 focus:ring-indigo-500 transition-colors placeholder-slate-500 text-slate-100"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Email */}
+            {/* Email Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Email Address</label>
+              <label className="text-xs font-bold text-slate-300">Email Address</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Mail className="w-4 h-4" />
@@ -150,9 +302,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
             </div>
 
-            {/* Password */}
+            {/* Password Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Secret passcode</label>
+              <label className="text-xs font-bold text-slate-300">Secret password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                   <Lock className="w-4 h-4" />
@@ -168,14 +320,37 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
             </div>
 
-            {errorMsg && (
-              <div className="flex items-start gap-2 text-xs text-rose-450 bg-rose-950/20 border border-rose-900/30 p-2.5 rounded-lg">
-                <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-                <span className="text-rose-300 font-medium">{errorMsg}</span>
-              </div>
-            )}
+            {/* Error Message Box */}
+            <AnimatePresence>
+              {errorMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="flex items-start gap-2.5 text-xs text-rose-455 bg-rose-950/20 border border-rose-900/30 p-3 rounded-xl mt-2"
+                >
+                  <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                  <span className="text-rose-300 font-medium leading-normal text-left">{errorMsg}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Submit Trigger */}
+            {/* Success Message Box */}
+            <AnimatePresence>
+              {successMsg && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="flex items-start gap-2.5 text-xs text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 p-3 rounded-xl mt-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                  <span className="text-emerald-300 font-medium leading-normal text-left">{successMsg}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -184,12 +359,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  Granting Security Clearances...
+                  {mode === "signin" ? "Authorizing node..." : "Registering Account..."}
                 </>
               ) : (
                 <>
-                  <LogIn className="w-4 h-4" />
-                  Request Access credentials
+                  {mode === "signin" ? <LogIn className="w-4 h-4 text-cyan-200" /> : <UserPlus className="w-4 h-4 text-cyan-200" />}
+                  {mode === "signin" ? "Request Access credentials" : "Create Account & Sign In"}
                 </>
               )}
             </button>
@@ -208,7 +383,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   onClick={() => handlePresetClick(stud.name, stud.email)}
                   className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-indigo-500/40 hover:bg-slate-900/30 text-slate-300 text-[10px] sm:text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer group"
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                  <UserCheck className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform animate-pulse" />
                   <div className="text-left leading-none">
                     <span className="block font-black text-slate-200">{stud.name}</span>
                     <span className="text-[9px] text-slate-500 font-medium block mt-0.5 font-mono">{stud.email}</span>
@@ -218,12 +393,37 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             </div>
           </div>
 
+          {/* Assistant Info / Mode Switch advice */}
+          <div className="mt-5 text-center">
+            {mode === "signin" ? (
+              <span className="text-xs text-slate-400 font-medium">
+                Don't have an account?{" "}
+                <button
+                  onClick={() => handleModeSwitch("signup")}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+                >
+                  Sign Up / Register Now
+                </button>
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400 font-medium">
+                Already registered?{" "}
+                <button
+                  onClick={() => handleModeSwitch("signin")}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+                >
+                  Sign In to Account
+                </button>
+              </span>
+            )}
+          </div>
+
         </motion.div>
 
         {/* Footer info */}
         <p className="text-center text-[10px] text-slate-500 mt-6 font-mono leading-relaxed">
           &copy; {new Date().getFullYear()} StudyMate AI Platform Security Guard Node. <br />
-          No backend configuration required is detected. Click any bypass button above for rapid simulation.
+          Accounts persist securely in client context local storage.
         </p>
 
       </div>
